@@ -167,7 +167,7 @@ curl http://localhost:8000/videos/1/quality/480p -o output_480p.mp4
 graph TD
     A[User] --> B{Upload Video}
     B --> C[FastAPI App]
-    C --> D[Celery Task (Async Processing)]
+    C --> D[Celery Task]
     D --> E{Processing Complete}
     E --> F[Store Metadata in DB]
     E --> G[Save Processed Video]
