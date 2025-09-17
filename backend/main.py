@@ -7,7 +7,7 @@ from celery.result import AsyncResult
 
 from backend import crud, models, schemas
 from backend.database import SessionLocal, engine
-from backend.celery_worker import process_upload, process_trim, process_text_overlay, process_image_overlay, process_video_overlay, process_watermark, process_quality
+from .celery_worker import celery_app, process_upload, process_trim, process_quality, process_image_overlay, process_video_overlay, process_text_overlay, process_watermark
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -126,12 +126,12 @@ def get_quality_video(video_id: int, quality: str, db: Session = Depends(get_db)
 
 @app.get("/status/{job_id}")
 def get_status(job_id: str):
-    task_result = AsyncResult(job_id)
+    task_result = AsyncResult(job_id, app=celery_app)
     return {"status": task_result.status, "result": task_result.result}
 
 @app.get("/result/{job_id}")
 def get_result(job_id: str):
-    task_.result = AsyncResult(job_id)
+    task_result = AsyncResult(job_id, app=celery_app)
     if task_result.ready():
         result = task_result.get()
         if result["status"] == "completed":
