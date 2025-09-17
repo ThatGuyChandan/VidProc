@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Body
 from sqlalchemy.orm import Session
 import os
+import uuid
 from pydantic import BaseModel
 from fastapi.responses import FileResponse
 from celery.result import AsyncResult
@@ -63,14 +64,18 @@ async def upload_video(file: UploadFile = File(...)):
     upload_dir = "uploads"
     if not os.path.exists(upload_dir):
         os.makedirs(upload_dir)
-        
-    file_path = os.path.join(upload_dir, file.filename)
-    
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
-        
-    task = process_upload.delay(file_path, file.filename)
-    return {"job_id": task.id}
+
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    try:
+        with open(file_path, "wb") as buffer:
+            buffer.write(await file.read())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+
+    task = process_upload.delay(file_path, unique_filename)
+    return {"job_id": task.id, "filename": unique_filename}
 
 @app.get("/videos/", response_model=list[schemas.Video])
 def read_videos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

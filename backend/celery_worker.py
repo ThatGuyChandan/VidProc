@@ -2,6 +2,7 @@ from celery import Celery
 import subprocess
 import json
 import os
+import uuid
 
 from backend.database import SessionLocal
 from backend import crud, schemas
@@ -32,6 +33,8 @@ def get_video_metadata(video_path: str):
     
     metadata = json.loads(result.stdout)
     
+    if "duration" not in metadata["format"] or "size" not in metadata["format"]:
+        raise Exception(f"Could not extract duration or size from video metadata for {video_path}. FFprobe output: {metadata}")
     duration = float(metadata["format"]["duration"])
     size = float(metadata["format"]["size"])
     
@@ -56,17 +59,23 @@ def process_trim(video_id: int, start_time: float, end_time: float):
         if not original_video:
             return {"status": "error", "message": "Original video not found"}
 
+        if start_time < 0 or end_time < 0:
+            return {"status": "error", "message": "Start and end times cannot be negative."}
+        if start_time >= end_time:
+            return {"status": "error", "message": "Start time must be less than end time."}
+
         upload_dir = "uploads"
         trim_dir = "trims"
         if not os.path.exists(trim_dir):
             os.makedirs(trim_dir)
 
         original_video_path = os.path.join(upload_dir, original_video.filename)
-        trimmed_video_filename = f"trimmed_{original_video.filename}"
+        trimmed_video_filename = f"trimmed_{uuid.uuid4()}_{original_video.filename}"
         trimmed_video_path = os.path.join(trim_dir, trimmed_video_filename)
 
         cmd = [
             "ffmpeg",
+            "-y", # Overwrite output files without asking
             "-i",
             original_video_path,
             "-ss",
@@ -77,7 +86,6 @@ def process_trim(video_id: int, start_time: float, end_time: float):
             "copy",
             trimmed_video_path,
         ]
-        
         subprocess.run(cmd, check=True)
 
         duration, size = get_video_metadata(trimmed_video_path)
@@ -101,13 +109,18 @@ def process_text_overlay(video_id: int, text: str, x: int, y: int, start_time: f
         if not original_video:
             return {"status": "error", "message": "Original video not found"}
 
+        if start_time < 0 or end_time < 0:
+            return {"status": "error", "message": "Start and end times cannot be negative."}
+        if start_time >= end_time:
+            return {"status": "error", "message": "Start time must be less than end time."}
+
         upload_dir = "uploads"
         output_dir = "outputs"
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         original_video_path = os.path.join(upload_dir, original_video.filename)
-        output_video_filename = f"overlay_{original_video.filename}"
+        output_video_filename = f"overlay_text_{uuid.uuid4()}_{original_video.filename}"
         output_video_path = os.path.join(output_dir, output_video_filename)
 
         font_file = "fonts/NotoSans-Regular.ttf"
@@ -147,12 +160,17 @@ def process_image_overlay(video_id: int, image_name: str, x: int, y: int, start_
         if not original_video:
             return {"status": "error", "message": "Original video not found"}
 
+        if start_time < 0 or end_time < 0:
+            return {"status": "error", "message": "Start and end times cannot be negative."}
+        if start_time >= end_time:
+            return {"status": "error", "message": "Start time must be less than end time."}
+
         upload_dir = "uploads"
         output_dir = "outputs"
         overlay_dir = "overlays"
 
         original_video_path = os.path.join(upload_dir, original_video.filename)
-        output_video_filename = f"overlay_image_{original_video.filename}"
+        output_video_filename = f"overlay_image_{uuid.uuid4()}_{original_video.filename}"
         output_video_path = os.path.join(output_dir, output_video_filename)
         overlay_image_path = os.path.join(overlay_dir, image_name)
 
@@ -161,6 +179,7 @@ def process_image_overlay(video_id: int, image_name: str, x: int, y: int, start_
 
         cmd = [
             "ffmpeg",
+            "-y", # Overwrite output files without asking
             "-i",
             original_video_path,
             "-i",
@@ -194,12 +213,17 @@ def process_video_overlay(video_id: int, video_name: str, x: int, y: int, start_
         if not original_video:
             return {"status": "error", "message": "Original video not found"}
 
+        if start_time < 0 or end_time < 0:
+            return {"status": "error", "message": "Start and end times cannot be negative."}
+        if start_time >= end_time:
+            return {"status": "error", "message": "Start time must be less than end time."}
+
         upload_dir = "uploads"
         output_dir = "outputs"
         overlay_dir = "overlays"
 
         original_video_path = os.path.join(upload_dir, original_video.filename)
-        output_video_filename = f"overlay_video_{original_video.filename}"
+        output_video_filename = f"overlay_video_{uuid.uuid4()}_{original_video.filename}"
         output_video_path = os.path.join(output_dir, output_video_filename)
         overlay_video_path = os.path.join(overlay_dir, video_name)
 
@@ -208,6 +232,7 @@ def process_video_overlay(video_id: int, video_name: str, x: int, y: int, start_
 
         cmd = [
             "ffmpeg",
+            "-y", # Overwrite output files without asking
             "-i",
             original_video_path,
             "-i",
@@ -246,7 +271,7 @@ def process_watermark(video_id: int, image_name: str):
         overlay_dir = "overlays"
 
         original_video_path = os.path.join(upload_dir, original_video.filename)
-        output_video_filename = f"watermarked_{original_video.filename}"
+        output_video_filename = f"watermarked_{uuid.uuid4()}_{original_video.filename}"
         output_video_path = os.path.join(output_dir, output_video_filename)
         watermark_image_path = os.path.join(overlay_dir, image_name)
 
@@ -255,6 +280,7 @@ def process_watermark(video_id: int, image_name: str):
 
         cmd = [
             "ffmpeg",
+            "-y", # Overwrite output files without asking
             "-i",
             original_video_path,
             "-i",
@@ -294,7 +320,7 @@ def process_quality(video_id: int, quality: str):
             os.makedirs(quality_dir)
 
         original_video_path = os.path.join(upload_dir, original_video.filename)
-        quality_video_filename = f"{quality}_{original_video.filename}"
+        quality_video_filename = f"{quality}_{uuid.uuid4()}_{original_video.filename}"
         quality_video_path = os.path.join(quality_dir, quality_video_filename)
 
         height = -1
@@ -309,6 +335,7 @@ def process_quality(video_id: int, quality: str):
 
         cmd = [
             "ffmpeg",
+            "-y", # Overwrite output files without asking
             "-i",
             original_video_path,
             "-vf",

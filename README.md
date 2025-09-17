@@ -14,7 +14,7 @@ This project is a FastAPI backend that handles video upload, processing (using f
     - Save trimmed video info in DB (link back to original).
 - **Level 3 – Overlays & Watermarking:**
     - API to add **text, image and video overlays** with position & timing.
-    - API to add a **watermark** (image/logo).
+    - API to add a **watermark** (image/logo).  
     - Store overlay/watermark config in DB.
 - **Level 4 – Async Job Queue:**
     - Asynchronous processing with Celery/Redis.
